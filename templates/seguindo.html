@@ -1,0 +1,184 @@
+{% extends 'index.html' %}
+
+{% block title %}
+Seguindo - Twitter Clone
+{% endblock %}
+
+{% block content %}
+
+<section class="users-page">
+
+    <div class="users-card">
+
+        <h1>Seguindo</h1>
+
+        <p class="users-subtitle">
+            Pessoas que você segue
+        </p>
+
+        <div
+            id="following-error"
+            class="error-message"
+            hidden
+        ></div>
+
+        <div
+            id="following-loading"
+            class="users-loading"
+        >
+            Carregando...
+        </div>
+
+        <div
+            id="following-container"
+            hidden
+        ></div>
+
+    </div>
+
+</section>
+
+
+<script>
+
+    const followingLoading =
+        document.getElementById(
+            'following-loading'
+        );
+
+
+    const followingContainer =
+        document.getElementById(
+            'following-container'
+        );
+
+
+    const followingError =
+        document.getElementById(
+            'following-error'
+        );
+
+
+    async function loadFollowing() {
+
+        try {
+
+            const response =
+                await fetch(
+                    '/api/following/',
+                    {
+                        method: 'GET',
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                followingLoading.hidden =
+                    true;
+
+                followingError.textContent =
+                    data.detail ||
+                    'Não foi possível carregar a lista de seguindo.';
+
+                followingError.hidden =
+                    false;
+
+                return;
+
+            }
+
+
+            followingLoading.hidden =
+                true;
+
+            followingContainer.hidden =
+                false;
+
+
+            if (data.length === 0) {
+
+                followingContainer.innerHTML = `
+                    <p class="empty-users">
+                        Você ainda não segue ninguém.
+                    </p>
+                `;
+
+                return;
+
+            }
+
+
+            data.forEach(user => {
+
+                const userElement =
+                    document.createElement(
+                        'article'
+                    );
+
+
+                userElement.classList.add(
+                    'user-item'
+                );
+
+
+                userElement.innerHTML = `
+
+                    <div class="user-info">
+
+                        <strong>
+                            <a
+                                href="/usuarios/${user.id}/"
+                                class="user-profile-link"
+                            >
+                                ${user.username}
+                            </a>
+                        </strong> 
+
+                        <span>
+                            ${user.first_name || ''}
+                            ${user.last_name || ''}
+                        </span>
+
+                    </div>
+
+                `;
+
+
+                followingContainer.appendChild(
+                    userElement
+                );
+
+            });
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            followingLoading.hidden =
+                true;
+
+            followingError.textContent =
+                'Erro ao carregar quem você segue.';
+
+            followingError.hidden =
+                false;
+
+        }
+
+    }
+
+
+    loadFollowing();
+
+</script>
+
+{% endblock %}

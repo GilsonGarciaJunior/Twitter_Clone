@@ -1,0 +1,130 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>
+        {% block title %}
+        Twitter Clone
+        {% endblock %}
+    </title>
+    <link
+        rel="stylesheet"
+        href="{% static 'css/styles.css' %}"
+    >
+</head>
+<body>
+    <header class="navbar">
+        <div class="container navbar-content">
+            <a
+                href="/feed/"
+                class="logo"
+            >
+                Twitter Clone
+            </a>
+            <nav class="nav-links">
+                <a href="/feed/">
+                    Feed
+                </a>
+                <a href="/usuarios/">
+                    Usuários
+                </a>
+                <a href="/seguidores/">
+                    Seguidores
+                </a>
+                <a href="/seguindo/">
+                    Seguindo
+                </a>
+                <a href="/perfil/">
+                    Perfil
+                </a>
+                <button
+                    type="button"
+                    id="logout-button"
+                    class="logout-button"
+                >
+                    Sair
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <script>
+        function getCookie(name) {
+            const cookies =
+                document.cookie.split(';');
+            for (
+                let cookie of cookies
+            ) {
+                cookie = cookie.trim();
+                if (
+                    cookie.startsWith(
+                        name + '='
+                    )
+                ) {
+                    return decodeURIComponent(
+                        cookie.substring(
+                            name.length + 1
+                        )
+                    );
+                }
+            }
+            return null;
+        }
+
+        const logoutButton =
+            document.getElementById(
+                'logout-button'
+            );
+        if (logoutButton) {
+            logoutButton.addEventListener(
+                'click',
+                async function() {
+                    const csrfToken =
+                        getCookie('csrftoken');
+                    try {
+                        const response =
+                            await fetch(
+                                '/api/auth/logout/',
+                                {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRFToken':
+                                            csrfToken
+                                    },
+                                    credentials:
+                                        'same-origin'
+                                }
+                            );
+                        if (
+                            response.ok
+                        ) {
+                            window.location.href =
+                                '/login/';
+                            return;
+                        }
+                        alert(
+                            'Não foi possível sair da conta.'
+                        );
+                    } catch (error) {
+                        console.error(error);
+                        alert(
+                            'Erro ao conectar ao servidor.'
+                        );
+                    }
+                }
+            );
+        }
+    </script>
+</body>
+</html>

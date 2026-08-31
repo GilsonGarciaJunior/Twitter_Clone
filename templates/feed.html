@@ -1,0 +1,1492 @@
+{% extends 'index.html' %}
+
+{% block title %}
+Feed - Twitter Clone
+{% endblock %}
+
+{% block content %}
+
+<section class="feed-page">
+
+
+<div class="feed-container">
+
+    <!-- FORMULÁRIO DE NOVO POST -->
+
+    <div class="create-post-card">
+
+        <h1>Feed</h1>
+
+        <form id="post-form">
+
+            <textarea
+                id="post-content"
+                name="content"
+                maxlength="280"
+                placeholder="O que você está pensando?"
+                required
+            ></textarea>
+
+            <div class="post-form-footer">
+
+                <span id="character-count">
+                    0/280
+                </span>
+
+                <button
+                    type="submit"
+                    id="publish-button"
+                >
+                    Publicar
+                </button>
+
+            </div>
+
+        </form>
+
+        <div
+            id="post-error"
+            class="error-message"
+            hidden
+        ></div>
+
+    </div>
+
+
+    <!-- LISTA DE POSTS -->
+
+    <div class="posts-section">
+
+        <div
+            id="feed-loading"
+            class="users-loading"
+        >
+            Carregando posts...
+        </div>
+
+        <div
+            id="feed-error"
+            class="error-message"
+            hidden
+        ></div>
+
+        <div
+            id="posts-container"
+        ></div>
+
+    </div>
+
+</div>
+
+
+</section>
+
+<script>
+
+    const postForm =
+        document.getElementById(
+            'post-form'
+        );
+
+
+    const postContent =
+        document.getElementById(
+            'post-content'
+        );
+
+
+    const characterCount =
+        document.getElementById(
+            'character-count'
+        );
+
+
+    const publishButton =
+        document.getElementById(
+            'publish-button'
+        );
+
+
+    const postError =
+        document.getElementById(
+            'post-error'
+        );
+
+
+    const feedLoading =
+        document.getElementById(
+            'feed-loading'
+        );
+
+
+    const feedError =
+        document.getElementById(
+            'feed-error'
+        );
+
+
+    const postsContainer =
+        document.getElementById(
+            'posts-container'
+        );
+
+
+    /*
+     * PEGA O TOKEN CSRF
+     */
+
+    function getCookie(name) {
+
+        const cookies =
+            document.cookie.split(';');
+
+
+        for (
+            let cookie of cookies
+        ) {
+
+            cookie =
+                cookie.trim();
+
+
+            if (
+                cookie.startsWith(
+                    name + '='
+                )
+            ) {
+
+                return decodeURIComponent(
+                    cookie.substring(
+                        name.length + 1
+                    )
+                );
+
+            }
+
+        }
+
+
+        return null;
+
+    }
+
+
+    /*
+     * CONTADOR DE CARACTERES
+     */
+
+    postContent.addEventListener(
+        'input',
+        function() {
+
+            characterCount.textContent =
+                `${postContent.value.length}/280`;
+
+        }
+    );
+
+
+    /*
+     * CARREGAR FEED
+     */
+
+    async function loadFeed() {
+
+        try {
+
+            const response =
+                await fetch(
+                    '/api/feed/',
+                    {
+                        method: 'GET',
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            feedLoading.hidden =
+                true;
+
+
+            if (!response.ok) {
+
+                feedError.textContent =
+                    data.detail ||
+                    'Não foi possível carregar o feed.';
+
+                feedError.hidden =
+                    false;
+
+                return;
+
+            }
+
+
+            postsContainer.innerHTML =
+                '';
+
+
+            /*
+             * CASO NÃO TENHA POSTS
+             */
+
+            if (
+                !Array.isArray(data) ||
+                data.length === 0
+            ) {
+
+                postsContainer.innerHTML = `
+                    <div class="empty-feed">
+                        <p>
+                            Nenhum post no seu feed.
+                        </p>
+                    </div>
+                `;
+
+                return;
+
+            }
+
+
+            /*
+             * CRIAR OS POSTS
+             */
+
+            data.forEach(
+                post => {
+
+                    const postElement =
+                        createPostElement(
+                            post
+                        );
+
+
+                    postsContainer.appendChild(
+                        postElement
+                    );
+
+                }
+            );
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            feedLoading.hidden =
+                true;
+
+            feedError.textContent =
+                'Erro ao conectar ao servidor.';
+
+            feedError.hidden =
+                false;
+
+        }
+
+    }
+
+
+    /*
+     * CRIAR ELEMENTO DO POST
+     */
+
+    function createPostElement(post) {
+
+        const article =
+            document.createElement(
+                'article'
+            );
+
+
+        article.classList.add(
+            'post-card'
+        );
+
+
+        article.innerHTML = `
+
+            <div class="post-header">
+
+                <strong>
+                    ${post.author}
+                </strong>
+
+            </div>
+
+
+            <div class="post-content">
+
+                ${post.content}
+
+            </div>
+
+
+            <div class="post-footer">
+
+                <button
+                    type="button"
+                    class="like-button"
+                    data-post-id="${post.id}"
+                    data-liked="${post.liked_by_me}"
+                >
+
+                    ${
+                        post.liked_by_me
+                            ? '❤️ Curtido'
+                            : '♡ Curtir'
+                    }
+
+                </button>
+
+
+                <span class="likes-count">
+
+                    ${post.likes_count}
+
+                </span>
+
+
+                <button
+                    type="button"
+                    class="comments-button"
+                >
+                    💬 Comentários
+                </button>
+
+
+                ${
+                    post.is_owner
+                        ? `
+                            <button
+                                type="button"
+                                class="delete-post-button"
+                            >
+                                🗑️ Excluir
+                            </button>
+                        `
+                        : ''
+                }
+
+            </div>
+
+
+            <div
+                class="comments-section"
+                hidden
+            >
+
+                <div class="comments-list">
+
+                    Carregando comentários...
+
+                </div>
+
+
+                <form class="comment-form">
+
+                    <input
+                        type="text"
+                        class="comment-input"
+                        maxlength="500"
+                        placeholder="Escreva um comentário..."
+                        required
+                    />
+
+
+                    <button
+                        type="submit"
+                        class="comment-submit"
+                    >
+                        Comentar
+                    </button>
+
+                </form>
+
+
+                <div
+                    class="comment-error"
+                    hidden
+                ></div>
+
+            </div>
+
+        `;
+
+
+        /*
+         * BOTÃO DE CURTIDA
+         */
+
+        const likeButton =
+            article.querySelector(
+                '.like-button'
+            );
+
+
+        likeButton.addEventListener(
+            'click',
+            function() {
+
+                toggleLike(
+                    post,
+                    likeButton,
+                    article
+                );
+
+            }
+        );
+
+
+        /*
+         * BOTÃO DE EXCLUIR POST
+         */
+
+        if (post.is_owner) {
+
+            const deleteButton =
+                article.querySelector(
+                    '.delete-post-button'
+                );
+
+
+            deleteButton.addEventListener(
+                'click',
+                function() {
+
+                    deletePost(
+                        post,
+                        article
+                    );
+
+                }
+            );
+
+        }
+
+
+        /*
+         * BOTÃO DE COMENTÁRIOS
+         */
+
+        const commentsButton =
+            article.querySelector(
+                '.comments-button'
+            );
+
+
+        commentsButton.addEventListener(
+            'click',
+            function() {
+
+                toggleComments(
+                    post,
+                    article
+                );
+
+            }
+        );
+
+
+        /*
+         * FORMULÁRIO DE COMENTÁRIO
+         */
+
+        const commentForm =
+            article.querySelector(
+                '.comment-form'
+            );
+
+
+        commentForm.addEventListener(
+            'submit',
+            function(event) {
+
+                submitComment(
+                    event,
+                    post,
+                    article
+                );
+
+            }
+        );
+
+
+        return article;
+
+    }
+
+
+    /*
+     * EXCLUIR POST
+     */
+
+    async function deletePost(
+        post,
+        article
+    ) {
+
+        const confirmed =
+            confirm(
+                'Tem certeza que deseja excluir este post?'
+            );
+
+
+        if (!confirmed) {
+
+            return;
+
+        }
+
+
+        const csrfToken =
+            getCookie('csrftoken');
+
+
+        const deleteButton =
+            article.querySelector(
+                '.delete-post-button'
+            );
+
+
+        deleteButton.disabled =
+            true;
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/posts/${post.id}/`,
+                    {
+                        method: 'DELETE',
+
+                        headers: {
+                            'X-CSRFToken':
+                                csrfToken
+                        },
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                let data = {};
+
+                try {
+
+                    data =
+                        await response.json();
+
+                } catch (error) {
+
+                    data = {};
+
+                }
+
+
+                alert(
+                    data.detail ||
+                    'Não foi possível excluir o post.'
+                );
+
+
+                deleteButton.disabled =
+                    false;
+
+
+                return;
+
+            }
+
+
+            /*
+             * POST EXCLUÍDO COM SUCESSO
+             *
+             * Recarrega o feed para remover
+             * o post da tela.
+             */
+
+            await loadFeed();
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            alert(
+                'Erro ao conectar ao servidor.'
+            );
+
+
+            deleteButton.disabled =
+                false;
+
+        }
+
+    }
+
+
+    async function toggleComments(
+        post,
+        article
+    ) {
+
+        const commentsSection =
+            article.querySelector(
+                '.comments-section'
+            );
+
+
+        if (!commentsSection.hidden) {
+
+            commentsSection.hidden =
+                true;
+
+            return;
+
+        }
+
+
+        commentsSection.hidden =
+            false;
+
+
+        await loadComments(
+            post,
+            article
+        );
+
+    }
+
+
+    async function loadComments(
+        post,
+        article
+    ) {
+
+        const commentsList =
+            article.querySelector(
+                '.comments-list'
+            );
+
+
+        commentsList.textContent =
+            'Carregando comentários...';
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/comments/?post=${post.id}`,
+                    {
+                        method: 'GET',
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                commentsList.textContent =
+                    'Não foi possível carregar os comentários.';
+
+                return;
+
+            }
+
+
+            commentsList.innerHTML =
+                '';
+
+
+            /*
+             * CASO NÃO TENHA COMENTÁRIOS
+             */
+
+            if (
+                !Array.isArray(data) ||
+                data.length === 0
+            ) {
+
+                commentsList.innerHTML = `
+                    <p class="no-comments">
+                        Nenhum comentário ainda.
+                    </p>
+                `;
+
+                return;
+
+            }
+
+
+            /*
+             * MOSTRAR COMENTÁRIOS
+             */
+
+            data.forEach(
+                comment => {
+
+                    const commentElement =
+                        document.createElement(
+                            'div'
+                        );
+
+
+                    commentElement.classList.add(
+                        'comment'
+                    );
+
+
+                    commentElement.innerHTML = `
+
+                        <div class="comment-header">
+
+                            <strong>
+                                ${comment.user}
+                            </strong>
+
+                        </div>
+
+
+                        <p class="comment-content">
+                            ${comment.content}
+                        </p>
+
+
+                        ${
+                            comment.is_owner
+                                ? `
+                                    <div class="comment-actions">
+
+                                        <button
+                                            type="button"
+                                            class="edit-comment-button"
+                                        >
+                                            ✏️ Editar
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="delete-comment-button"
+                                        >
+                                            🗑️ Excluir
+                                        </button>
+
+                                    </div>
+                                `
+                                : ''
+                        }
+
+                    `;
+
+
+                    commentsList.appendChild(
+                        commentElement
+                    );
+
+
+                    if (comment.is_owner) {
+
+                        const editButton =
+                            commentElement.querySelector(
+                                '.edit-comment-button'
+                            );
+
+
+                        const deleteButton =
+                            commentElement.querySelector(
+                                '.delete-comment-button'
+                            );
+
+
+                        editButton.addEventListener(
+                            'click',
+                            function() {
+
+                                editComment(
+                                    comment,
+                                    article
+                                );
+
+                            }
+                        );
+
+
+                        deleteButton.addEventListener(
+                            'click',
+                            function() {
+
+                                deleteComment(
+                                    comment,
+                                    post,
+                                    article
+                                );
+
+                            }
+                        );
+
+                    }
+
+                }
+            );
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            commentsList.textContent =
+                'Erro ao conectar ao servidor.';
+
+        }
+
+    }
+
+
+    async function editComment(
+        comment,
+        article
+    ) {
+
+        const newContent =
+            prompt(
+                'Edite seu comentário:',
+                comment.content
+            );
+
+
+        if (newContent === null) {
+
+            return;
+
+        }
+
+
+        const content =
+            newContent.trim();
+
+
+        if (!content) {
+
+            alert(
+                'O comentário não pode ficar vazio.'
+            );
+
+            return;
+
+        }
+
+
+        const csrfToken =
+            getCookie('csrftoken');
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/comments/${comment.id}/`,
+                    {
+                        method: 'PATCH',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json',
+
+                            'X-CSRFToken':
+                                csrfToken
+                        },
+
+                        credentials:
+                            'same-origin',
+
+                        body:
+                            JSON.stringify({
+                                content:
+                                    content
+                            })
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                alert(
+                    data.detail ||
+                    'Não foi possível editar o comentário.'
+                );
+
+                return;
+
+            }
+
+
+            const postId =
+                comment.post;
+
+
+            const post = {
+                id: postId
+            };
+
+
+            await loadComments(
+                post,
+                article
+            );
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            alert(
+                'Erro ao conectar ao servidor.'
+            );
+
+        }
+
+    }
+
+
+    async function deleteComment(
+        comment,
+        post,
+        article
+    ) {
+
+        const confirmed =
+            confirm(
+                'Tem certeza que deseja excluir este comentário?'
+            );
+
+
+        if (!confirmed) {
+
+            return;
+
+        }
+
+
+        const csrfToken =
+            getCookie('csrftoken');
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/comments/${comment.id}/`,
+                    {
+                        method: 'DELETE',
+
+                        headers: {
+                            'X-CSRFToken':
+                                csrfToken
+                        },
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                let data = {};
+
+                try {
+
+                    data =
+                        await response.json();
+
+                } catch (error) {
+
+                    data = {};
+
+                }
+
+
+                alert(
+                    data.detail ||
+                    'Não foi possível excluir o comentário.'
+                );
+
+                return;
+
+            }
+
+
+            await loadComments(
+                post,
+                article
+            );
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            alert(
+                'Erro ao conectar ao servidor.'
+            );
+
+        }
+
+    }
+
+
+    async function submitComment(
+        event,
+        post,
+        article
+    ) {
+
+        event.preventDefault();
+
+
+        const form =
+            event.target;
+
+
+        const input =
+            form.querySelector(
+                '.comment-input'
+            );
+
+
+        const button =
+            form.querySelector(
+                '.comment-submit'
+            );
+
+
+        const errorElement =
+            article.querySelector(
+                '.comment-error'
+            );
+
+
+        const content =
+            input.value.trim();
+
+
+        if (!content) {
+
+            return;
+
+        }
+
+
+        const csrfToken =
+            getCookie('csrftoken');
+
+
+        button.disabled =
+            true;
+
+
+        errorElement.hidden =
+            true;
+
+
+        try {
+
+            const response =
+                await fetch(
+                    '/api/comments/',
+                    {
+                        method: 'POST',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json',
+
+                            'X-CSRFToken':
+                                csrfToken
+                        },
+
+                        credentials:
+                            'same-origin',
+
+                        body:
+                            JSON.stringify({
+                                post: post.id,
+                                content: content
+                            })
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                errorElement.textContent =
+                    Object.values(data)
+                        .flat()
+                        .join(' ');
+
+
+                errorElement.hidden =
+                    false;
+
+                return;
+
+            }
+
+
+            /*
+             * LIMPAR INPUT
+             */
+
+            input.value =
+                '';
+
+
+            /*
+             * ATUALIZAR COMENTÁRIOS
+             */
+
+            await loadComments(
+                post,
+                article
+            );
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            errorElement.textContent =
+                'Erro ao conectar ao servidor.';
+
+            errorElement.hidden =
+                false;
+
+        } finally {
+
+            button.disabled =
+                false;
+
+        }
+
+    }
+
+
+    async function toggleLike(
+        post,
+        button,
+        article
+    ) {
+
+        const csrfToken =
+            getCookie('csrftoken');
+
+
+        const liked =
+            button.dataset.liked === 'true';
+
+
+        const method =
+            liked
+                ? 'DELETE'
+                : 'POST';
+
+
+        button.disabled =
+            true;
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/posts/${post.id}/like/`,
+                    {
+                        method: method,
+
+                        headers: {
+                            'X-CSRFToken':
+                                csrfToken
+                        },
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            /*
+             * DELETE retorna 204 No Content,
+             * então não podemos usar response.json()
+             * nesse caso.
+             */
+
+            if (!response.ok) {
+
+                let data = {};
+
+                try {
+
+                    data =
+                        await response.json();
+
+                } catch (error) {
+
+                    data = {};
+
+                }
+
+
+                alert(
+                    data.detail ||
+                    'Não foi possível alterar a curtida.'
+                );
+
+                return;
+
+            }
+
+
+            const likesCount =
+                article.querySelector(
+                    '.likes-count'
+                );
+
+
+            const currentLikes =
+                parseInt(
+                    likesCount.textContent
+                );
+
+
+            if (liked) {
+
+                /*
+                 * DESCURTIR
+                 */
+
+                button.textContent =
+                    '♡ Curtir';
+
+                button.dataset.liked =
+                    'false';
+
+
+                likesCount.textContent =
+                    currentLikes - 1;
+
+            } else {
+
+                /*
+                 * CURTIR
+                 */
+
+                button.textContent =
+                    '❤️ Curtido';
+
+                button.dataset.liked =
+                    'true';
+
+
+                likesCount.textContent =
+                    currentLikes + 1;
+
+            }
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            alert(
+                'Erro ao conectar ao servidor.'
+            );
+
+        } finally {
+
+            button.disabled =
+                false;
+
+        }
+
+    }
+
+
+    /*
+     * CRIAR POST
+     */
+
+    postForm.addEventListener(
+        'submit',
+        async function(event) {
+
+            event.preventDefault();
+
+
+            const content =
+                postContent.value.trim();
+
+
+            if (!content) {
+
+                postError.textContent =
+                    'Escreva alguma coisa antes de publicar.';
+
+                postError.hidden =
+                    false;
+
+                return;
+
+            }
+
+
+            postError.hidden =
+                true;
+
+            publishButton.disabled =
+                true;
+
+            publishButton.textContent =
+                'Publicando...';
+
+
+            const csrfToken =
+                getCookie('csrftoken');
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        '/api/posts/',
+                        {
+                            method: 'POST',
+
+                            headers: {
+                                'Content-Type':
+                                    'application/json',
+
+                                'X-CSRFToken':
+                                    csrfToken
+                            },
+
+                            credentials:
+                                'same-origin',
+
+                            body:
+                                JSON.stringify({
+                                    content:
+                                        content
+                                })
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    if (
+                        typeof data ===
+                        'object'
+                    ) {
+
+                        postError.textContent =
+                            Object.values(data)
+                                .flat()
+                                .join(' ');
+
+                    } else {
+
+                        postError.textContent =
+                            'Não foi possível criar o post.';
+
+                    }
+
+
+                    postError.hidden =
+                        false;
+
+                    return;
+
+                }
+
+
+                /*
+                 * LIMPAR FORMULÁRIO
+                 */
+
+                postContent.value =
+                    '';
+
+                characterCount.textContent =
+                    '0/280';
+
+
+                /*
+                 * RECARREGAR FEED
+                 */
+
+                await loadFeed();
+
+
+            } catch (error) {
+
+                console.error(error);
+
+                postError.textContent =
+                    'Erro ao conectar ao servidor.';
+
+                postError.hidden =
+                    false;
+
+            } finally {
+
+                publishButton.disabled =
+                    false;
+
+                publishButton.textContent =
+                    'Publicar';
+
+            }
+
+        }
+    );
+
+
+    /*
+     * INICIAR
+     */
+
+    loadFeed();
+
+</script>
+
+{% endblock %}

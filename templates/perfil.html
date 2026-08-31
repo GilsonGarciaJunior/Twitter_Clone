@@ -1,0 +1,1193 @@
+{% extends 'index.html' %}
+
+{% block title %}
+Perfil - Twitter Clone
+{% endblock %}
+
+{% block content %}
+
+<section class="profile-page">
+
+<div class="profile-card">
+
+    <h1>Meu perfil</h1>
+
+    <div
+        id="profile-error"
+        class="error-message"
+        hidden
+    ></div>
+
+    <div
+        id="profile-loading"
+        class="profile-loading"
+    >
+        Carregando perfil...
+    </div>
+
+    <div
+        id="profile-content"
+        hidden
+    >
+
+        <!-- FOTO -->
+
+        <div class="profile-photo-container">
+
+            <img
+                id="profile-photo"
+                class="profile-photo"
+                src=""
+                alt="Foto do perfil"
+            >
+
+        </div>
+
+
+        <!-- INFORMAÇÕES -->
+
+        <div class="profile-info">
+
+            <div class="profile-field">
+
+                <span class="profile-label">
+                    Usuário
+                </span>
+
+                <span
+                    id="profile-username"
+                    class="profile-value"
+                ></span>
+
+            </div>
+
+
+            <div class="profile-field">
+
+                <span class="profile-label">
+                    Nome
+                </span>
+
+                <span
+                    id="profile-name"
+                    class="profile-value"
+                ></span>
+
+            </div>
+
+
+            <div class="profile-field">
+
+                <span class="profile-label">
+                    E-mail
+                </span>
+
+                <span
+                    id="profile-email"
+                    class="profile-value"
+                ></span>
+
+            </div>
+
+
+            <div class="profile-field">
+
+                <span class="profile-label">
+                    Bio
+                </span>
+
+                <span
+                    id="profile-bio"
+                    class="profile-value"
+                ></span>
+
+            </div>
+
+        </div>
+
+
+        <!-- BOTÃO EDITAR PERFIL -->
+
+        <button
+            type="button"
+            id="edit-profile-button"
+            class="button"
+        >
+            Editar perfil
+        </button>
+
+
+        <!-- FORMULÁRIO EDITAR PERFIL -->
+
+        <form
+            id="profile-form"
+            hidden
+        >
+
+            {% csrf_token %}
+
+            <div class="form-group">
+
+                <label for="first_name">
+                    Nome
+                </label>
+
+                <input
+                    type="text"
+                    id="first_name"
+                    name="first_name"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="last_name">
+                    Sobrenome
+                </label>
+
+                <input
+                    type="text"
+                    id="last_name"
+                    name="last_name"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="email">
+                    E-mail
+                </label>
+
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="bio">
+                    Bio
+                </label>
+
+                <textarea
+                    id="bio"
+                    name="bio"
+                    maxlength="500"
+                ></textarea>
+
+            </div>
+
+
+            <div class="profile-form-buttons">
+
+                <button
+                    type="submit"
+                    class="button"
+                >
+                    Salvar alterações
+                </button>
+
+                <button
+                    type="button"
+                    id="cancel-edit-button"
+                    class="button button-secondary"
+                >
+                    Cancelar
+                </button>
+
+            </div>
+
+        </form>
+
+
+        <!-- MEUS POSTS -->
+
+        <section class="profile-posts">
+
+            <h2>Meus posts</h2>
+
+            <div
+                id="posts-loading"
+                class="profile-loading"
+            >
+                Carregando posts...
+            </div>
+
+
+            <div
+                id="posts-error"
+                class="error-message"
+                hidden
+            ></div>
+
+
+            <div
+                id="profile-posts-container"
+            ></div>
+
+        </section>
+
+    </div>
+
+</div>
+
+</section>
+
+<script>
+
+/*
+ * ==========================================
+ * CSRF
+ * ==========================================
+ */
+
+function getCookie(name) {
+
+    const cookies =
+        document.cookie.split(';');
+
+
+    for (let cookie of cookies) {
+
+        cookie = cookie.trim();
+
+
+        if (
+            cookie.startsWith(
+                name + '='
+            )
+        ) {
+
+            return decodeURIComponent(
+                cookie.substring(
+                    name.length + 1
+                )
+            );
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/*
+ * ==========================================
+ * ELEMENTOS DO PERFIL
+ * ==========================================
+ */
+
+const profileLoading =
+    document.getElementById(
+        'profile-loading'
+    );
+
+
+const profileContent =
+    document.getElementById(
+        'profile-content'
+    );
+
+
+const profileError =
+    document.getElementById(
+        'profile-error'
+    );
+
+
+const editProfileButton =
+    document.getElementById(
+        'edit-profile-button'
+    );
+
+
+const profileForm =
+    document.getElementById(
+        'profile-form'
+    );
+
+
+const cancelEditButton =
+    document.getElementById(
+        'cancel-edit-button'
+    );
+
+
+let currentProfile = null;
+
+
+/*
+ * ==========================================
+ * ELEMENTOS DOS POSTS
+ * ==========================================
+ */
+
+const postsLoading =
+    document.getElementById(
+        'posts-loading'
+    );
+
+
+const postsError =
+    document.getElementById(
+        'posts-error'
+    );
+
+
+const profilePostsContainer =
+    document.getElementById(
+        'profile-posts-container'
+    );
+
+
+/*
+ * ==========================================
+ * CARREGAR PERFIL
+ * ==========================================
+ */
+
+async function loadProfile() {
+
+    try {
+
+        const response =
+            await fetch(
+                '/api/profile/',
+                {
+                    method: 'GET',
+
+                    credentials:
+                        'same-origin'
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            profileLoading.hidden =
+                true;
+
+            profileError.textContent =
+                data.detail ||
+                'Não foi possível carregar o perfil.';
+
+            profileError.hidden =
+                false;
+
+            return;
+
+        }
+
+
+        currentProfile =
+            data;
+
+
+        document.getElementById(
+            'profile-username'
+        ).textContent =
+            data.username || '';
+
+
+        document.getElementById(
+            'profile-name'
+        ).textContent =
+            `${data.first_name || ''} ${data.last_name || ''}`.trim();
+
+
+        document.getElementById(
+            'profile-email'
+        ).textContent =
+            data.email || '';
+
+
+        document.getElementById(
+            'profile-bio'
+        ).textContent =
+            data.bio || '';
+
+
+        const profilePhoto =
+            document.getElementById(
+                'profile-photo'
+            );
+
+
+        if (data.foto) {
+
+            profilePhoto.src =
+                data.foto;
+
+        } else {
+
+            profilePhoto.removeAttribute(
+                'src'
+            );
+
+        }
+
+
+        profileLoading.hidden =
+            true;
+
+
+        profileContent.hidden =
+            false;
+
+
+        /*
+         * CARREGAR POSTS
+         */
+
+        await loadMyPosts();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+
+        profileLoading.hidden =
+            true;
+
+
+        profileError.textContent =
+            'Erro ao carregar o perfil.';
+
+
+        profileError.hidden =
+            false;
+
+    }
+
+}
+
+
+/*
+ * ==========================================
+ * EDITAR PERFIL
+ * ==========================================
+ */
+
+editProfileButton.addEventListener(
+    'click',
+    function() {
+
+        document.getElementById(
+            'first_name'
+        ).value =
+            currentProfile.first_name || '';
+
+
+        document.getElementById(
+            'last_name'
+        ).value =
+            currentProfile.last_name || '';
+
+
+        document.getElementById(
+            'email'
+        ).value =
+            currentProfile.email || '';
+
+
+        document.getElementById(
+            'bio'
+        ).value =
+            currentProfile.bio || '';
+
+
+        editProfileButton.hidden =
+            true;
+
+
+        profileForm.hidden =
+            false;
+
+    }
+);
+
+
+/*
+ * ==========================================
+ * CANCELAR EDIÇÃO
+ * ==========================================
+ */
+
+cancelEditButton.addEventListener(
+    'click',
+    function() {
+
+        profileForm.hidden =
+            true;
+
+
+        editProfileButton.hidden =
+            false;
+
+    }
+);
+
+
+/*
+ * ==========================================
+ * SALVAR PERFIL
+ * ==========================================
+ */
+
+profileForm.addEventListener(
+    'submit',
+    async function(event) {
+
+        event.preventDefault();
+
+
+        profileError.hidden =
+            true;
+
+
+        profileError.textContent =
+            '';
+
+
+        const csrfToken =
+            getCookie('csrftoken');
+
+
+        const firstName =
+            document.getElementById(
+                'first_name'
+            ).value.trim();
+
+
+        const lastName =
+            document.getElementById(
+                'last_name'
+            ).value.trim();
+
+
+        const email =
+            document.getElementById(
+                'email'
+            ).value.trim();
+
+
+        const bio =
+            document.getElementById(
+                'bio'
+            ).value.trim();
+
+
+        try {
+
+            const response =
+                await fetch(
+                    '/api/profile/update/',
+                    {
+                        method: 'PATCH',
+
+                        headers: {
+
+                            'Content-Type':
+                                'application/json',
+
+                            'X-CSRFToken':
+                                csrfToken
+
+                        },
+
+                        credentials:
+                            'same-origin',
+
+                        body:
+                            JSON.stringify({
+
+                                first_name:
+                                    firstName,
+
+                                last_name:
+                                    lastName,
+
+                                email:
+                                    email,
+
+                                bio:
+                                    bio
+
+                            })
+
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                let message =
+                    'Não foi possível atualizar o perfil.';
+
+
+                if (data.email) {
+
+                    message =
+                        data.email[0];
+
+                } else if (data.detail) {
+
+                    message =
+                        data.detail;
+
+                }
+
+
+                profileError.textContent =
+                    message;
+
+
+                profileError.hidden =
+                    false;
+
+
+                return;
+
+            }
+
+
+            currentProfile =
+                data;
+
+
+            document.getElementById(
+                'profile-name'
+            ).textContent =
+                `${data.first_name || ''} ${data.last_name || ''}`.trim();
+
+
+            document.getElementById(
+                'profile-email'
+            ).textContent =
+                data.email || '';
+
+
+            document.getElementById(
+                'profile-bio'
+            ).textContent =
+                data.bio || '';
+
+
+            profileForm.hidden =
+                true;
+
+
+            editProfileButton.hidden =
+                false;
+
+
+        } catch (error) {
+
+            console.error(error);
+
+
+            profileError.textContent =
+                'Erro ao atualizar o perfil.';
+
+
+            profileError.hidden =
+                false;
+
+        }
+
+    }
+);
+
+
+/*
+ * ==========================================
+ * CARREGAR MEUS POSTS
+ * ==========================================
+ */
+
+async function loadMyPosts() {
+
+    postsLoading.hidden =
+        false;
+
+
+    postsError.hidden =
+        true;
+
+
+    try {
+
+        const response =
+            await fetch(
+                '/api/posts/my-posts/',
+                {
+                    method: 'GET',
+
+                    credentials:
+                        'same-origin'
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        postsLoading.hidden =
+            true;
+
+
+        if (!response.ok) {
+
+            postsError.textContent =
+                data.detail ||
+                'Não foi possível carregar seus posts.';
+
+
+            postsError.hidden =
+                false;
+
+
+            return;
+
+        }
+
+
+        profilePostsContainer.innerHTML =
+            '';
+
+
+        if (
+            !Array.isArray(data) ||
+            data.length === 0
+        ) {
+
+            profilePostsContainer.innerHTML = `
+                <div class="empty-feed">
+
+                    <p>
+                        Você ainda não publicou nenhum post.
+                    </p>
+
+                </div>
+            `;
+
+
+            return;
+
+        }
+
+
+        data.forEach(
+            post => {
+
+                const postElement =
+                    createProfilePostElement(
+                        post
+                    );
+
+
+                profilePostsContainer.appendChild(
+                    postElement
+                );
+
+            }
+        );
+
+
+    } catch (error) {
+
+        console.error(error);
+
+
+        postsLoading.hidden =
+            true;
+
+
+        postsError.textContent =
+            'Erro ao conectar ao servidor.';
+
+
+        postsError.hidden =
+            false;
+
+    }
+
+}
+
+
+/*
+ * ==========================================
+ * CRIAR ELEMENTO DO POST
+ * ==========================================
+ */
+
+function createProfilePostElement(post) {
+
+    const article =
+        document.createElement(
+            'article'
+        );
+
+
+    article.classList.add(
+        'post-card'
+    );
+
+
+    article.innerHTML = `
+
+        <div class="post-header">
+
+            <strong>
+                ${post.author}
+            </strong>
+
+        </div>
+
+
+        <div class="post-content">
+
+            ${post.content}
+
+        </div>
+
+
+        <div class="post-footer">
+
+            <span class="likes-count">
+
+                ❤️ ${post.likes_count}
+
+            </span>
+
+
+            ${
+                post.is_owner
+                    ? `
+
+                        <button
+                            type="button"
+                            class="edit-post-button"
+                        >
+                            ✏️ Editar
+                        </button>
+
+
+                        <button
+                            type="button"
+                            class="delete-post-button"
+                        >
+                            🗑️ Excluir
+                        </button>
+
+                    `
+                    : ''
+            }
+
+        </div>
+
+    `;
+
+
+    /*
+     * BOTÃO EDITAR
+     */
+
+    if (post.is_owner) {
+
+        const editButton =
+            article.querySelector(
+                '.edit-post-button'
+            );
+
+
+        const deleteButton =
+            article.querySelector(
+                '.delete-post-button'
+            );
+
+
+        editButton.addEventListener(
+            'click',
+            function() {
+
+                editPost(
+                    post,
+                    article
+                );
+
+            }
+        );
+
+
+        deleteButton.addEventListener(
+            'click',
+            function() {
+
+                deletePost(
+                    post,
+                    article
+                );
+
+            }
+        );
+
+    }
+
+
+    return article;
+
+}
+
+
+/*
+ * ==========================================
+ * EDITAR POST
+ * ==========================================
+ */
+
+async function editPost(
+    post,
+    article
+) {
+
+    const newContent =
+        prompt(
+            'Edite seu post:',
+            post.content
+        );
+
+
+    if (newContent === null) {
+
+        return;
+
+    }
+
+
+    const content =
+        newContent.trim();
+
+
+    if (!content) {
+
+        alert(
+            'O post não pode ficar vazio.'
+        );
+
+        return;
+
+    }
+
+
+    if (content.length > 280) {
+
+        alert(
+            'O post não pode ter mais de 280 caracteres.'
+        );
+
+        return;
+
+    }
+
+
+    const csrfToken =
+        getCookie('csrftoken');
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/posts/${post.id}/`,
+                {
+                    method: 'PATCH',
+
+                    headers: {
+
+                        'Content-Type':
+                            'application/json',
+
+                        'X-CSRFToken':
+                            csrfToken
+
+                    },
+
+                    credentials:
+                        'same-origin',
+
+                    body:
+                        JSON.stringify({
+                            content:
+                                content
+                        })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            alert(
+                data.detail ||
+                'Não foi possível editar o post.'
+            );
+
+
+            return;
+
+        }
+
+
+        await loadMyPosts();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+
+        alert(
+            'Erro ao conectar ao servidor.'
+        );
+
+    }
+
+}
+
+
+/*
+ * ==========================================
+ * EXCLUIR POST
+ * ==========================================
+ */
+
+async function deletePost(
+    post,
+    article
+) {
+
+    const confirmed =
+        confirm(
+            'Tem certeza que deseja excluir este post?'
+        );
+
+
+    if (!confirmed) {
+
+        return;
+
+    }
+
+
+    const csrfToken =
+        getCookie('csrftoken');
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/posts/${post.id}/`,
+                {
+                    method: 'DELETE',
+
+                    headers: {
+
+                        'X-CSRFToken':
+                            csrfToken
+
+                    },
+
+                    credentials:
+                        'same-origin'
+
+                }
+            );
+
+
+        if (!response.ok) {
+
+            let data = {};
+
+
+            try {
+
+                data =
+                    await response.json();
+
+            } catch (error) {
+
+                data = {};
+
+            }
+
+
+            alert(
+                data.detail ||
+                'Não foi possível excluir o post.'
+            );
+
+
+            return;
+
+        }
+
+
+        /*
+         * RECARREGAR POSTS
+         */
+
+        await loadMyPosts();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+
+        alert(
+            'Erro ao conectar ao servidor.'
+        );
+
+    }
+
+}
+
+
+/*
+ * ==========================================
+ * INICIAR
+ * ==========================================
+ */
+
+loadProfile();
+
+</script>
+
+{% endblock %}

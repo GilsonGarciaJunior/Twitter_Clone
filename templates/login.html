@@ -1,0 +1,124 @@
+{% extends 'index.html' %}
+
+{% block title %}
+Login - Twitter Clone
+{% endblock %}
+
+{% block content %}
+
+<section class="auth-container">
+    <div class="auth-card">
+        <h1>Entrar</h1>
+        <p class="auth-subtitle">
+            Entre na sua conta do Twitter Clone
+        </p>
+        <form id="login-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="username">
+                    Usuário
+                </label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    placeholder="Digite seu usuário"
+                    required
+                >
+            </div>
+            <div class="form-group">
+                <label for="password">
+                    Senha
+                </label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Digite sua senha"
+                    required
+                >
+            </div>
+            <div
+                id="login-error"
+                class="error-message"
+                hidden
+            ></div>
+            <button
+                type="submit"
+                class="button"
+            >
+                Entrar
+            </button>
+        </form>
+        <p class="auth-footer">
+            Ainda não possui uma conta?
+            <a href="/cadastro/">
+                Criar conta
+            </a>
+        </p>
+    </div>
+</section>
+
+<script>
+    function getCookie(name) {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + '=')) {
+                return decodeURIComponent(
+                    cookie.substring(name.length + 1)
+                );
+            }
+        }
+        return null;
+    }
+
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+
+
+    loginForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        loginError.hidden = true;
+        loginError.textContent = '';
+
+        const username =
+            document.getElementById('username').value;
+        const password =
+            document.getElementById('password').value;
+        const csrfToken = getCookie('csrftoken');
+        try {
+            const response = await fetch(
+                '/api/auth/login/',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                }
+            );
+            const data = await response.json();
+            if (!response.ok) {
+                loginError.textContent =
+                    data.detail ||
+                    data.non_field_errors?.[0] ||
+                    'Usuário ou senha incorretos.';
+                loginError.hidden = false;
+                return;
+            }
+            window.location.href = '/feed/';
+        } catch (error) {
+            loginError.textContent =
+                'Não foi possível conectar ao servidor.';
+            loginError.hidden = false;
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,265 @@
+{% extends 'index.html' %}
+
+{% block title %}
+Cadastro - Twitter Clone
+{% endblock %}
+
+{% block content %}
+
+<section class="auth-container">
+    <div class="auth-card">
+        <h1>Criar conta</h1>
+        <p class="auth-subtitle">
+            Crie sua conta no Twitter Clone
+        </p>
+        <form id="register-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="username">
+                    Usuário
+                </label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    placeholder="Digite seu usuário"
+                    maxlength="150"
+                    required
+                >
+            </div>
+            <div class="form-group">
+                <label for="first_name">
+                    Nome
+                </label>
+                <input
+                    type="text"
+                    id="first_name"
+                    name="first_name"
+                    placeholder="Digite seu nome"
+                >
+            </div>
+            <div class="form-group">
+                <label for="last_name">
+                    Sobrenome
+                </label>
+                <input
+                    type="text"
+                    id="last_name"
+                    name="last_name"
+                    placeholder="Digite seu sobrenome"
+                >
+            </div>
+            <div class="form-group">
+                <label for="email">
+                    E-mail
+                </label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="Digite seu e-mail"
+                    required
+                >
+            </div>
+            <div class="form-group">
+                <label for="password">
+                    Senha
+                </label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Digite sua senha"
+                    required
+                >
+            </div>
+            <div class="form-group">
+                <label for="password_confirm">
+                    Confirmar senha
+                </label>
+                <input
+                    type="password"
+                    id="password_confirm"
+                    name="password_confirm"
+                    placeholder="Digite a senha novamente"
+                    required
+                >
+            </div>
+            <div
+                id="register-error"
+                class="error-message"
+                hidden
+            ></div>
+            <button
+                type="submit"
+                class="button"
+            >
+                Criar conta
+            </button>
+        </form>
+        <p class="auth-footer">
+            Já possui uma conta?
+            <a href="/login/">
+                Entrar
+            </a>
+        </p>
+    </div>
+</section>
+
+
+<script>
+    function getCookie(name) {
+
+        const cookies =
+            document.cookie.split(';');
+
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+
+            if (
+                cookie.startsWith(
+                    name + '='
+                )
+            ) {
+                return decodeURIComponent(
+                    cookie.substring(
+                        name.length + 1
+                    )
+                );
+            }
+        }
+        return null;
+
+    }
+
+    const registerForm =
+        document.getElementById(
+            'register-form'
+        );
+    const registerError =
+        document.getElementById(
+            'register-error'
+        );
+
+    registerForm.addEventListener(
+        'submit',
+        async function(event) {
+            event.preventDefault();
+
+            registerError.hidden = true;
+            registerError.textContent = '';
+            const username =
+                document.getElementById(
+                    'username'
+                ).value.trim();
+            const firstName =
+                document.getElementById(
+                    'first_name'
+                ).value.trim();
+            const lastName =
+                document.getElementById(
+                    'last_name'
+                ).value.trim();
+            const email =
+                document.getElementById(
+                    'email'
+                ).value.trim();
+            const password =
+                document.getElementById(
+                    'password'
+                ).value;
+            const passwordConfirm =
+                document.getElementById(
+                    'password_confirm'
+                ).value;
+            if (
+                password !==
+                passwordConfirm
+            ) {
+                registerError.textContent =
+                    'As senhas não coincidem.';
+                registerError.hidden = false;
+                return;
+            }
+
+            const csrfToken =
+                getCookie('csrftoken');
+            try {
+                const response =
+                    await fetch(
+                        '/api/auth/register/',
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type':
+                                    'application/json',
+                                'X-CSRFToken':
+                                    csrfToken
+                            },
+                            credentials:
+                                'same-origin',
+                            body: JSON.stringify({
+                                username:
+                                    username,
+                                first_name:
+                                    firstName,
+                                last_name:
+                                    lastName,
+                                email:
+                                    email,
+                                password:
+                                    password,
+                                password_confirm:
+                                    passwordConfirm
+                            })
+                        }
+                    );
+                const data =
+                    await response.json();
+                if (!response.ok) {
+                    let message =
+                        'Não foi possível criar a conta.';
+                    if (
+                        data.username
+                    ) {
+                        message =
+                            data.username[0];
+                    } else if (
+                        data.email
+                    ) {
+                        message =
+                            data.email[0];
+                    } else if (
+                        data.password
+                    ) {
+                        message =
+                            data.password[0];
+                    } else if (
+                        data.detail
+                    ) {
+                        message =
+                            data.detail;
+                    } else if (
+                        data.non_field_errors
+                    ) {
+                        message =
+                            data.non_field_errors[0];
+                    }
+                    registerError.textContent =
+                        message;
+                    registerError.hidden =
+                        false;
+                    return;
+                }
+                window.location.href =
+                    '/login/';
+            } catch (error) {
+                registerError.textContent =
+                    'Não foi possível conectar ao servidor.';
+                registerError.hidden =
+                    false;
+            }
+        }
+    );
+</script>
+{% endblock %}

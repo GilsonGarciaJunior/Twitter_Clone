@@ -1,0 +1,184 @@
+{% extends 'index.html' %}
+
+{% block title %}
+Seguidores - Twitter Clone
+{% endblock %}
+
+{% block content %}
+
+<section class="users-page">
+
+    <div class="users-card">
+
+        <h1>Seguidores</h1>
+
+        <p class="users-subtitle">
+            Pessoas que seguem você
+        </p>
+
+        <div
+            id="followers-error"
+            class="error-message"
+            hidden
+        ></div>
+
+        <div
+            id="followers-loading"
+            class="users-loading"
+        >
+            Carregando seguidores...
+        </div>
+
+        <div
+            id="followers-container"
+            hidden
+        ></div>
+
+    </div>
+
+</section>
+
+
+<script>
+
+    const followersLoading =
+        document.getElementById(
+            'followers-loading'
+        );
+
+
+    const followersContainer =
+        document.getElementById(
+            'followers-container'
+        );
+
+
+    const followersError =
+        document.getElementById(
+            'followers-error'
+        );
+
+
+    async function loadFollowers() {
+
+        try {
+
+            const response =
+                await fetch(
+                    '/api/followers/',
+                    {
+                        method: 'GET',
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                followersLoading.hidden =
+                    true;
+
+                followersError.textContent =
+                    data.detail ||
+                    'Não foi possível carregar os seguidores.';
+
+                followersError.hidden =
+                    false;
+
+                return;
+
+            }
+
+
+            followersLoading.hidden =
+                true;
+
+            followersContainer.hidden =
+                false;
+
+
+            if (data.length === 0) {
+
+                followersContainer.innerHTML = `
+                    <p class="empty-users">
+                        Você ainda não possui seguidores.
+                    </p>
+                `;
+
+                return;
+
+            }
+
+
+            data.forEach(user => {
+
+                const userElement =
+                    document.createElement(
+                        'article'
+                    );
+
+
+                userElement.classList.add(
+                    'user-item'
+                );
+
+
+                userElement.innerHTML = `
+
+                    <div class="user-info">
+
+                        <strong>
+                            <a
+                                href="/usuarios/${user.id}/"
+                                class="user-profile-link"
+                            >
+                                ${user.username}
+                            </a>
+                        </strong> 
+
+                        <span>
+                            ${user.first_name || ''}
+                            ${user.last_name || ''}
+                        </span>
+
+                    </div>
+
+                `;
+
+
+                followersContainer.appendChild(
+                    userElement
+                );
+
+            });
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            followersLoading.hidden =
+                true;
+
+            followersError.textContent =
+                'Erro ao carregar os seguidores.';
+
+            followersError.hidden =
+                false;
+
+        }
+
+    }
+
+
+    loadFollowers();
+
+</script>
+
+{% endblock %}

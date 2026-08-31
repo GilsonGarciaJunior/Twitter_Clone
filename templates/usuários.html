@@ -1,0 +1,380 @@
+{% extends 'index.html' %}
+
+{% block title %}
+Usuários - Twitter Clone
+{% endblock %}
+
+{% block content %}
+
+<section class="users-page">
+
+    <div class="users-card">
+
+        <h1>Usuários</h1>
+
+        <p class="users-subtitle">
+            Encontre pessoas para seguir
+        </p>
+
+        <div
+            id="users-error"
+            class="error-message"
+            hidden
+        ></div>
+
+        <div
+            id="users-loading"
+            class="users-loading"
+        >
+            Carregando usuários...
+        </div>
+
+        <div
+            id="users-container"
+            hidden
+        ></div>
+
+    </div>
+
+</section>
+
+
+<script>
+
+    function getCookie(name) {
+
+        const cookies =
+            document.cookie.split(';');
+
+        for (let cookie of cookies) {
+
+            cookie = cookie.trim();
+
+            if (
+                cookie.startsWith(
+                    name + '='
+                )
+            ) {
+
+                return decodeURIComponent(
+                    cookie.substring(
+                        name.length + 1
+                    )
+                );
+
+            }
+        }
+
+        return null;
+    }
+
+
+    const usersLoading =
+        document.getElementById(
+            'users-loading'
+        );
+
+
+    const usersContainer =
+        document.getElementById(
+            'users-container'
+        );
+
+
+    const usersError =
+        document.getElementById(
+            'users-error'
+        );
+
+
+    async function loadUsers() {
+
+        try {
+
+            const response =
+                await fetch(
+                    '/api/users/',
+                    {
+                        method: 'GET',
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            console.log(
+                'Usuários recebidos:',
+                data
+            );
+
+
+            if (!response.ok) {
+
+                usersLoading.hidden =
+                    true;
+
+                usersError.textContent =
+                    data.detail ||
+                    'Não foi possível carregar os usuários.';
+
+                usersError.hidden =
+                    false;
+
+                return;
+            }
+
+
+            usersLoading.hidden =
+                true;
+
+            usersContainer.hidden =
+                false;
+
+
+            if (data.length === 0) {
+
+                usersContainer.innerHTML = `
+                    <p class="empty-users">
+                        Nenhum usuário encontrado.
+                    </p>
+                `;
+
+                return;
+            }
+
+
+            data.forEach(user => {
+
+                const userElement =
+                    createUserElement(user);
+
+                usersContainer.appendChild(
+                    userElement
+                );
+
+            });
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            usersLoading.hidden =
+                true;
+
+            usersError.textContent =
+                'Erro ao carregar os usuários.';
+
+            usersError.hidden =
+                false;
+        }
+    }
+
+
+    function createUserElement(user) {
+
+        const article =
+            document.createElement(
+                'article'
+            );
+
+
+        article.classList.add(
+            'user-item'
+        );
+
+
+        article.innerHTML = `
+
+            <div class="user-info">
+
+                <strong>
+                    <a
+                        href="/usuarios/${user.id}/"
+                        class="user-profile-link"
+                    >
+                        ${user.username}
+                    </a>
+                </strong>                
+
+                <span>
+                    ${user.first_name || ''}
+                    ${user.last_name || ''}
+                </span>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="follow-button"
+                data-user-id="${user.id}"
+            >
+            </button>
+
+        `;
+
+
+        const followButton =
+            article.querySelector(
+                '.follow-button'
+            );
+
+
+        /*
+         * Aqui está a parte importante:
+         * usamos o is_following que veio da API.
+         */
+
+        if (user.is_following === true) {
+
+            followButton.textContent =
+                'Deixar de seguir';
+
+            followButton.dataset.following =
+                'true';
+
+        } else {
+
+            followButton.textContent =
+                'Seguir';
+
+            followButton.dataset.following =
+                'false';
+        }
+
+
+        followButton.addEventListener(
+            'click',
+            function() {
+
+                toggleFollow(
+                    user,
+                    followButton
+                );
+
+            }
+        );
+
+
+        return article;
+    }
+
+
+    async function toggleFollow(
+        user,
+        button
+    ) {
+
+        const csrfToken =
+            getCookie('csrftoken');
+
+
+        const isFollowing =
+            button.dataset.following ===
+            'true';
+
+
+        const method =
+            isFollowing
+                ? 'DELETE'
+                : 'POST';
+
+
+        button.disabled =
+            true;
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/users/${user.id}/follow/`,
+                    {
+                        method: method,
+
+                        headers: {
+                            'X-CSRFToken':
+                                csrfToken
+                        },
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            console.log(
+                'Resposta do follow:',
+                data
+            );
+
+
+            if (!response.ok) {
+
+                alert(
+                    data.detail ||
+                    'Não foi possível realizar a ação.'
+                );
+
+                button.disabled =
+                    false;
+
+                return;
+            }
+
+
+            if (isFollowing) {
+
+                button.textContent =
+                    'Seguir';
+
+                button.dataset.following =
+                    'false';
+
+                user.is_following =
+                    false;
+
+            } else {
+
+                button.textContent =
+                    'Deixar de seguir';
+
+                button.dataset.following =
+                    'true';
+
+                user.is_following =
+                    true;
+            }
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            alert(
+                'Erro ao conectar ao servidor.'
+            );
+
+        }
+
+
+        button.disabled =
+            false;
+    }
+
+
+    loadUsers();
+
+</script>
+
+{% endblock %}

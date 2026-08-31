@@ -1,0 +1,678 @@
+{% extends 'index.html' %}
+
+{% block title %}
+Perfil - Twitter Clone
+{% endblock %}
+
+{% block content %}
+
+<section class="profile-page">
+
+
+<div class="profile-card">
+
+    <div
+        id="profile-error"
+        class="error-message"
+        hidden
+    ></div>
+
+    <div
+        id="profile-loading"
+        class="profile-loading"
+    >
+        Carregando perfil...
+    </div>
+
+
+    <div
+        id="profile-content"
+        hidden
+    >
+
+        <div class="profile-photo-container">
+
+            <img
+                id="profile-photo"
+                class="profile-photo"
+                src=""
+                alt="Foto do perfil"
+            >
+
+        </div>
+
+
+        <div class="profile-info">
+
+            <div class="profile-field">
+
+                <span class="profile-label">
+                    Usuário
+                </span>
+
+                <span
+                    id="profile-username"
+                    class="profile-value"
+                ></span>
+
+            </div>
+
+
+            <div class="profile-field">
+
+                <span class="profile-label">
+                    Nome
+                </span>
+
+                <span
+                    id="profile-name"
+                    class="profile-value"
+                ></span>
+
+            </div>
+
+
+            <div class="profile-field">
+
+                <span class="profile-label">
+                    Bio
+                </span>
+
+                <span
+                    id="profile-bio"
+                    class="profile-value"
+                ></span>
+
+            </div>
+
+        </div>
+        <div class="profile-stats">
+
+            <div class="profile-stat">
+                <strong id="followers-count">0</strong>
+                <span>Seguidores</span>
+            </div>
+
+            <div class="profile-stat">
+                <strong id="following-count">0</strong>
+                <span>Seguindo</span>
+            </div>
+
+        </div>
+
+
+        <div class="profile-actions">
+
+            <button
+                type="button"
+                id="follow-button"
+                class="button"
+            >
+                Seguir
+            </button>
+
+        </div>
+
+
+        <div class="profile-posts">
+
+            <h2>
+                Posts
+            </h2>
+
+            <div
+                id="posts-loading"
+                class="profile-loading"
+            >
+                Carregando posts...
+            </div>
+
+            <div
+                id="posts-container"
+            ></div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+</section>
+
+<script>
+
+    /*
+     * ID DO USUÁRIO
+     *
+     * Pega o ID diretamente da URL.
+     *
+     * Exemplo:
+     *
+     * /usuarios/3/
+     *
+     * resultado:
+     *
+     * userId = 3
+     */
+
+    const userId = '{{ user_id }}';
+
+
+    /*
+     * ELEMENTOS DA PÁGINA
+     */
+
+    const profileLoading =
+        document.getElementById(
+            'profile-loading'
+        );
+
+
+    const profileContent =
+        document.getElementById(
+            'profile-content'
+        );
+
+
+    const profileError =
+        document.getElementById(
+            'profile-error'
+        );
+
+
+    const followButton =
+        document.getElementById(
+            'follow-button'
+        );
+
+
+    const postsLoading =
+        document.getElementById(
+            'posts-loading'
+        );
+
+
+    const postsContainer =
+        document.getElementById(
+            'posts-container'
+        );
+
+    const followersCount =
+        document.getElementById(
+            'followers-count'
+        );
+
+    const followingCount =
+        document.getElementById(
+            'following-count'
+        );
+
+
+    /*
+     * CARREGAR PERFIL
+     */
+
+    async function loadProfile() {
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/users/${userId}/`,
+                    {
+                        method: 'GET',
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                profileLoading.hidden =
+                    true;
+
+                profileError.textContent =
+                    data.detail ||
+                    'Não foi possível carregar o perfil.';
+
+                profileError.hidden =
+                    false;
+
+                return;
+
+            }
+
+
+            /*
+             * PREENCHER INFORMAÇÕES
+             */
+
+            document.getElementById(
+                'profile-username'
+            ).textContent =
+                data.username || '';
+
+
+            document.getElementById(
+                'profile-name'
+            ).textContent =
+                `${data.first_name || ''} ${data.last_name || ''}`.trim();
+
+
+            document.getElementById(
+                'profile-bio'
+            ).textContent =
+                data.bio || '';
+
+            followersCount.textContent =
+                data.followers_count || 0;
+
+            followingCount.textContent =
+                data.following_count || 0;
+
+
+            /*
+             * FOTO
+             */
+
+            const profilePhoto =
+                document.getElementById(
+                    'profile-photo'
+                );
+
+
+            if (data.foto) {
+
+                profilePhoto.src =
+                    data.foto;
+
+            } else {
+
+                profilePhoto.style.display =
+                    'none';
+
+            }
+
+
+            /*
+             * BOTÃO SEGUIR
+             */
+
+            if (data.is_following) {
+
+                followButton.textContent =
+                    'Deixar de seguir';
+
+                followButton.dataset.following =
+                    'true';
+
+            } else {
+
+                followButton.textContent =
+                    'Seguir';
+
+                followButton.dataset.following =
+                    'false';
+
+            }
+
+
+            /*
+             * NÃO DEIXAR SEGUIR A SI MESMO
+             */
+
+            if (
+                data.username ===
+                '{{ request.user.username }}'
+            ) {
+
+                followButton.hidden =
+                    true;
+
+            }
+
+
+            profileLoading.hidden =
+                true;
+
+            profileContent.hidden =
+                false;
+
+
+            /*
+             * CARREGAR POSTS
+             */
+
+            await loadPosts();
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            profileLoading.hidden =
+                true;
+
+            profileError.textContent =
+                'Erro ao carregar o perfil.';
+
+            profileError.hidden =
+                false;
+
+        }
+
+    }
+
+
+    /*
+     * CARREGAR POSTS DO USUÁRIO
+     */
+
+    async function loadPosts() {
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/posts/?author=${userId}`,
+                    {
+                        method: 'GET',
+
+                        credentials:
+                            'same-origin'
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            postsLoading.hidden =
+                true;
+
+
+            if (!response.ok) {
+
+                postsContainer.innerHTML = `
+                    <p class="error-message">
+                        Não foi possível carregar os posts.
+                    </p>
+                `;
+
+                return;
+
+            }
+
+
+            postsContainer.innerHTML =
+                '';
+
+
+            /*
+             * DRF PODE RETORNAR RESULTS
+             */
+
+            const posts =
+                Array.isArray(data)
+                    ? data
+                    : data.results || [];
+
+
+            if (posts.length === 0) {
+
+                postsContainer.innerHTML = `
+                    <p class="empty-feed">
+                        Este usuário ainda não publicou nenhum post.
+                    </p>
+                `;
+
+                return;
+
+            }
+
+
+            posts.forEach(
+                post => {
+
+                    const postElement =
+                        document.createElement(
+                            'article'
+                        );
+
+
+                    postElement.classList.add(
+                        'post-card'
+                    );
+
+
+                    postElement.innerHTML = `
+
+                        <div class="post-header">
+
+                            <strong>
+                                ${post.author}
+                            </strong>
+
+                        </div>
+
+
+                        <div class="post-content">
+
+                            ${post.content}
+
+                        </div>
+
+
+                        <div class="post-footer">
+
+                            <span>
+                                ❤️ ${post.likes_count}
+                            </span>
+
+                        </div>
+
+                    `;
+
+
+                    postsContainer.appendChild(
+                        postElement
+                    );
+
+                }
+            );
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            postsLoading.hidden =
+                true;
+
+            postsContainer.innerHTML = `
+                <p class="error-message">
+                    Erro ao carregar os posts.
+                </p>
+            `;
+
+        }
+
+    }
+
+
+    /*
+     * SEGUIR / DEIXAR DE SEGUIR
+     */
+
+    followButton.addEventListener(
+        'click',
+        async function() {
+
+            const csrfToken =
+                getCookie('csrftoken');
+
+
+            const isFollowing =
+                followButton.dataset.following ===
+                'true';
+
+
+            const method =
+                isFollowing
+                    ? 'DELETE'
+                    : 'POST';
+
+
+            followButton.disabled =
+                true;
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        `/api/users/${userId}/follow/`,
+                        {
+                            method: method,
+
+                            headers: {
+                                'X-CSRFToken':
+                                    csrfToken
+                            },
+
+                            credentials:
+                                'same-origin'
+                        }
+                    );
+
+
+                let data = {};
+
+                try {
+
+                    data =
+                        await response.json();
+
+                } catch (error) {
+
+                    data = {};
+
+                }
+
+
+                if (!response.ok) {
+
+                    alert(
+                        data.detail ||
+                        'Não foi possível realizar a ação.'
+                    );
+
+                    return;
+
+                }
+
+
+                if (isFollowing) {
+
+                    followButton.textContent =
+                        'Seguir';
+
+                    followButton.dataset.following =
+                        'false';
+
+                    followersCount.textContent =
+                        Math.max(
+                            0,
+                            Number(followersCount.textContent) - 1
+                        );
+
+                } else {
+
+                    followButton.textContent =
+                        'Deixar de seguir';
+
+                    followButton.dataset.following =
+                        'true';
+
+                    followersCount.textContent =
+                        Number(followersCount.textContent) + 1;
+
+                }
+
+
+            } catch (error) {
+
+                console.error(error);
+
+                alert(
+                    'Erro ao conectar ao servidor.'
+                );
+
+            } finally {
+
+                followButton.disabled =
+                    false;
+
+            }
+
+        }
+    );
+
+
+    /*
+     * CSRF
+     */
+
+    function getCookie(name) {
+
+        const cookies =
+            document.cookie.split(';');
+
+
+        for (
+            let cookie of cookies
+        ) {
+
+            cookie =
+                cookie.trim();
+
+
+            if (
+                cookie.startsWith(
+                    name + '='
+                )
+            ) {
+
+                return decodeURIComponent(
+                    cookie.substring(
+                        name.length + 1
+                    )
+                );
+
+            }
+
+        }
+
+
+        return null;
+
+    }
+
+
+    /*
+     * INICIAR
+     */
+
+    loadProfile();
+
+</script>
+
+{% endblock %}
